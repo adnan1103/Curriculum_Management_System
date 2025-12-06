@@ -117,7 +117,12 @@ const TeacherListPage = async ({
                 classId: parseInt(value),
               },
             };
-          // break;
+            break;
+          case "search":
+            query.name = { contains: value, mode: "insensitive" };
+            break;
+          default:
+            break;
           // Add more cases for other filters as needed
         }
       }
@@ -126,7 +131,7 @@ const TeacherListPage = async ({
 
   const [data, count] = await prisma.$transaction([
     prisma.teacher.findMany({
-       where: query,
+      where: query,
       include: {
         subjects: true,
         classes: true,
@@ -134,7 +139,7 @@ const TeacherListPage = async ({
       take: Item_Per_Page,
       skip: Item_Per_Page * (p - 1),
     }),
-    prisma.teacher.count({where: query}),
+    prisma.teacher.count({ where: query }),
   ]);
 
   return (
