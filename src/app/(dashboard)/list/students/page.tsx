@@ -8,6 +8,7 @@ import { Class, Prisma, Student } from "@prisma/client";
 import Image from "next/image";
 import Link from "next/link";
 import { Item_Per_Page } from "@/lib/settings";
+import { de } from "zod/v4/locales";
 
 type StudentList = Student & { class: Class };
 
@@ -111,22 +112,25 @@ const StudentListPage = async ({
             break;
           case "search":
             query.name = { contains: value, mode: "insensitive" };
+            break;
+          default:
+            break;
           // Add more cases for other filters as needed
         }
       }
     }
   }
 
-    const [data, count] = await prisma.$transaction([
+  const [data, count] = await prisma.$transaction([
     prisma.student.findMany({
-       where: query,
+      where: query,
       include: {
         class: true,
       },
       take: Item_Per_Page,
       skip: Item_Per_Page * (p - 1),
     }),
-    prisma.student.count({where: query}),
+    prisma.student.count({ where: query }),
   ]);
 
   return (
@@ -155,7 +159,7 @@ const StudentListPage = async ({
       {/* LIST */}
       <Table columns={columns} renderRow={renderRow} data={data} />
       {/* PAGINATION */}
-      <Pagination page = {p} count = {count} />
+      <Pagination page={p} count={count} />
     </div>
   );
 };

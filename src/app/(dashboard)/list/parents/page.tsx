@@ -48,14 +48,14 @@ const renderRow = (item: ParentList) => (
       </div>
     </td>
     <td className="hidden md:table-cell">
-      {item.students.map((student) => student.name ).join(",")}
+      {item.students.map((student) => student.name).join(",")}
     </td>
     <td className="hidden md:table-cell">{item.phone}</td>
     <td className="hidden md:table-cell">{item.address}</td>
     <td>
       <div className="flex items-center gap-2">
         {role === "admin" && (
-          <> 
+          <>
             <FormModal table="parent" type="update" data={item} />
             <FormModal table="parent" type="delete" id={item.id} />
           </>
@@ -85,6 +85,8 @@ const ParentListPage = async ({
         switch (key) {
           case "search":
             query.name = { contains: value, mode: "insensitive" };
+            break;
+          default:
             break;
           // Add more cases for other filters as needed
         }
