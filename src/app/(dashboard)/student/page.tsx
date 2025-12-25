@@ -1,9 +1,11 @@
 import Announcements from "@/components/Announcements"
 import BigCalendar from "@/components/BigCalender"
 import EventCalendar from "@/components/EventCalendar"
+import { auth } from "@clerk/nextjs/server";
 
 
 const StudentPage = () => {
+   const { userId } = auth();
   return (
     <div className="p-4 flex gap-4 flex-col xl:flex-row">
       {/* LEFT */}
