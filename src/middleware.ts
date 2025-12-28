@@ -1,7 +1,4 @@
-import {
-  clerkMiddleware,
-  createRouteMatcher,
-} from "@clerk/nextjs/server";
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { routeAccessMap } from "./lib/settings";
 import { NextResponse } from "next/server";
 
@@ -11,16 +8,19 @@ const matchers = Object.keys(routeAccessMap).map((route) => ({
 }));
 
 console.log(matchers);
-export default clerkMiddleware((auth, req) => {
-  // if (isProtectedRoute(req)) auth().protect();
 
-  const { sessionClaims } = auth();
+export default clerkMiddleware(async (auth, req) => {
+  // if (isProtectedRoute(req)) auth().protect()
+
+  const { sessionClaims } = await auth();
 
   const role = (sessionClaims?.metadata as { role?: string })?.role;
 
   for (const { matcher, allowedRoles } of matchers) {
     if (matcher(req) && !allowedRoles.includes(role!)) {
-      return NextResponse.redirect(new URL(`/${role}`, req.url));
+      // Redirect to a specific "unauthorized" page or their own dashboard
+      const url = new URL(role ? `/${role}` : "/sign-in", req.url);
+      return NextResponse.redirect(url);
     }
   }
 });

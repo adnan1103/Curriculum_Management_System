@@ -1,14 +1,24 @@
-import FormModal from "@/components/FormModal";
+import FormContainer from "@/components/FormContainer";
 import Pagination from "@/components/Pagination";
 import Table from "@/components/Table";
 import TableSearch from "@/components/TableSearch";
-import { classesData, role } from "@/lib/data";
 import prisma from "@/lib/prisma";
-import { Item_Per_Page } from "@/lib/settings";
+import { ITEM_PER_PAGE } from "@/lib/settings";
 import { Class, Prisma, Teacher } from "@prisma/client";
 import Image from "next/image";
+import { auth } from "@clerk/nextjs/server";
 
 type ClassList = Class & { supervisor: Teacher };
+
+const ClassListPage = async ({
+  searchParams,
+}: {
+  searchParams: { [key: string]: string | undefined };
+}) => {
+
+const { sessionClaims } = await auth();
+const role = (sessionClaims?.metadata as { role?: string })?.role;
+
 
 const columns = [
   {
@@ -30,10 +40,14 @@ const columns = [
     accessor: "supervisor",
     className: "hidden md:table-cell",
   },
-  {
-    header: "Actions",
-    accessor: "action",
-  },
+  ...(role === "admin"
+    ? [
+        {
+          header: "Actions",
+          accessor: "action",
+        },
+      ]
+    : []),
 ];
 
 const renderRow = (item: ClassList) => (
@@ -51,8 +65,8 @@ const renderRow = (item: ClassList) => (
       <div className="flex items-center gap-2">
         {role === "admin" && (
           <>
-            <FormModal table="class" type="update" data={item} />
-            <FormModal table="class" type="delete" id={item.id} />
+            <FormContainer table="class" type="update" data={item} />
+            <FormContainer table="class" type="delete" id={item.id} />
           </>
         )}
       </div>
@@ -60,21 +74,15 @@ const renderRow = (item: ClassList) => (
   </tr>
 );
 
-const ClassListPage = async ({
-  searchParams,
-}: {
-  searchParams: { [key: string]: string | undefined };
-}) => {
   const { page, ...queryParams } = searchParams;
 
   const p = page ? parseInt(page) : 1;
 
-  // URL Query Params to Prisma Query
+  // URL PARAMS CONDITION
 
   const query: Prisma.ClassWhereInput = {};
 
   if (queryParams) {
-    // Add filtering logic here based on queryParams
     for (const [key, value] of Object.entries(queryParams)) {
       if (value !== undefined) {
         switch (key) {
@@ -86,7 +94,6 @@ const ClassListPage = async ({
             break;
           default:
             break;
-          // Add more cases for other filters as needed
         }
       }
     }
@@ -98,8 +105,8 @@ const ClassListPage = async ({
       include: {
         supervisor: true,
       },
-      take: Item_Per_Page,
-      skip: Item_Per_Page * (p - 1),
+      take: ITEM_PER_PAGE,
+      skip: ITEM_PER_PAGE * (p - 1),
     }),
     prisma.class.count({ where: query }),
   ]);
@@ -118,7 +125,7 @@ const ClassListPage = async ({
             <button className="w-8 h-8 flex items-center justify-center rounded-full bg-lamaYellow">
               <Image src="/sort.png" alt="" width={14} height={14} />
             </button>
-            {role === "admin" && <FormModal table="class" type="create" />}
+            {role === "admin" && <FormContainer table="class" type="create" />}
           </div>
         </div>
       </div>
