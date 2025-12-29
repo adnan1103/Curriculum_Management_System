@@ -21,7 +21,15 @@ const StudentPage = async () => {
       <div className="w-full xl:w-2/3">
         <div className="h-full bg-white p-4 rounded-md">
           <h1 className="text-xl font-semibold">Schedule (4A)</h1>
-          <BigCalendarContainer type="classId" id={classItem[0].id} />
+          {/* <BigCalendarContainer type="classId" id={classItem[0]?.id} /> */}
+
+          {classItem.length > 0 ? (
+            <BigCalendarContainer type="classId" id={classItem[0].id} />
+          ) : (
+            <div className="p-4 text-red-500">
+              No class assigned. Please contact your administrator.
+            </div>
+          )}
         </div>
       </div>
       {/* RIGHT */}
