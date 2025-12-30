@@ -21,7 +21,7 @@ const deleteActionMap = {
   teacher: deleteTeacher,
   student: deleteStudent,
   exam: deleteExam,
-// TODO: OTHER DELETE ACTIONS
+  // TODO: OTHER DELETE ACTIONS
   parent: deleteSubject,
   lesson: deleteSubject,
   assignment: deleteSubject,
@@ -148,7 +148,17 @@ const FormModal = ({
         </button>
       </form>
     ) : type === "create" || type === "update" ? (
-      forms[table](setOpen, type, data, relatedData)
+      // ✅ FIXED: Check if form exists before calling
+      forms[table] ? (
+        forms[table](setOpen, type, data, relatedData)
+      ) : (
+        <div className="p-4 text-center">
+          <h2 className="text-xl font-semibold text-gray-700">
+            {table.charAt(0).toUpperCase() + table.slice(1)} Form
+          </h2>
+          <p className="text-gray-500 mt-2">This form is coming soon!</p>
+        </div>
+      )
     ) : (
       "Form not found!"
     );
