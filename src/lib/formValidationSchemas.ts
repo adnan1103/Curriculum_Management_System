@@ -87,3 +87,27 @@ export const examSchema = z.object({
 });
 
 export type ExamSchema = z.infer<typeof examSchema>;
+
+// Elective Course Schema
+export const electiveCourseSchema = z.object({
+  id: z.coerce.number().optional(),
+  name: z.string().min(1, { message: "Course name is required!" }),
+  code: z.string().min(1, { message: "Course code is required!" }),
+  description: z.string().optional(),
+  capacity: z.coerce.number().min(1, { message: "Capacity must be at least 1!" }).default(30),
+  credits: z.coerce.number().min(1, { message: "Credits must be at least 1!" }).default(3),
+  semester: z.string().optional(),
+  schedule: z.string().optional(),
+  isActive: z.boolean().default(true),
+  teacherId: z.string().optional(),
+});
+
+export type ElectiveCourseSchema = z.infer<typeof electiveCourseSchema>;
+
+// Elective Enrollment Schema
+export const electiveEnrollmentSchema = z.object({
+  studentId: z.string().min(1, { message: "Student ID is required!" }),
+  electiveCourseId: z.coerce.number().min(1, { message: "Course ID is required!" }),
+});
+
+export type ElectiveEnrollmentSchema = z.infer<typeof electiveEnrollmentSchema>;

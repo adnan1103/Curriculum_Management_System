@@ -6,6 +6,7 @@ import {
   deleteStudent,
   deleteSubject,
   deleteTeacher,
+  deleteElectiveCourse,
 } from "@/lib/actions";
 import dynamic from "next/dynamic";
 import Image from "next/image";
@@ -15,12 +16,13 @@ import { useFormState } from "react-dom";
 import { toast } from "react-toastify";
 import { FormContainerProps } from "./FormContainer";
 
-const deleteActionMap = {
+const deleteActionMap: { [key: string]: any } = {
   subject: deleteSubject,
   class: deleteClass,
   teacher: deleteTeacher,
   student: deleteStudent,
   exam: deleteExam,
+  electiveCourse: deleteElectiveCourse,
   // TODO: OTHER DELETE ACTIONS
   parent: deleteSubject,
   lesson: deleteSubject,
@@ -51,66 +53,94 @@ const ClassForm = dynamic(() => import("./forms/ClassForm"), {
 const ExamForm = dynamic(() => import("./forms/ExamForm"), {
   loading: () => <h1>Loading...</h1>,
 });
+const ElectiveCourseForm = dynamic(() => import("./forms/ElectiveCourseForm"), {
+  loading: () => <h1>Loading...</h1>,
+});
 // TODO: OTHER FORMS
 
+// Update the forms object
 const forms: {
   [key: string]: (
-    setOpen: Dispatch<SetStateAction<boolean>>,
     type: "create" | "update",
     data?: any,
+    setOpen?: Dispatch<SetStateAction<boolean>>, // ← FIXED TYPE
     relatedData?: any
   ) => JSX.Element;
 } = {
-  subject: (setOpen, type, data, relatedData) => (
-    <SubjectForm
-      type={type}
-      data={data}
-      setOpen={setOpen}
-      relatedData={relatedData}
-    />
-  ),
-  class: (setOpen, type, data, relatedData) => (
-    <ClassForm
-      type={type}
-      data={data}
-      setOpen={setOpen}
-      relatedData={relatedData}
-    />
-  ),
-  teacher: (setOpen, type, data, relatedData) => (
+  teacher: (type, data, setOpen, relatedData) => (
     <TeacherForm
       type={type}
       data={data}
-      setOpen={setOpen}
+      setOpen={setOpen!}
       relatedData={relatedData}
     />
   ),
-  student: (setOpen, type, data, relatedData) => (
+  student: (type, data, setOpen, relatedData) => (
     <StudentForm
       type={type}
       data={data}
-      setOpen={setOpen}
+      setOpen={setOpen!}
       relatedData={relatedData}
     />
   ),
-  exam: (setOpen, type, data, relatedData) => (
+  subject: (type, data, setOpen, relatedData) => (
+    <SubjectForm
+      type={type}
+      data={data}
+      setOpen={setOpen!}
+      relatedData={relatedData}
+    />
+  ),
+  class: (type, data, setOpen, relatedData) => (
+    <ClassForm
+      type={type}
+      data={data}
+      setOpen={setOpen!}
+      relatedData={relatedData}
+    />
+  ),
+  exam: (type, data, setOpen, relatedData) => (
     <ExamForm
       type={type}
       data={data}
-      setOpen={setOpen}
+      setOpen={setOpen!}
       relatedData={relatedData}
     />
-    // TODO OTHER LIST ITEMS
+  ),
+  // Add this
+  electiveCourse: (type, data, setOpen, relatedData) => (
+    <ElectiveCourseForm
+      type={type}
+      data={data}
+      setOpen={setOpen!}
+      relatedData={relatedData}
+    />
   ),
 };
 
-const FormModal = ({
-  table,
-  type,
-  data,
-  id,
-  relatedData,
-}: FormContainerProps & { relatedData?: any }) => {
+// Rest of your FormModal component...
+type FormModalProps = {
+  table:
+    | "teacher"
+    | "student"
+    | "parent"
+    | "subject"
+    | "class"
+    | "lesson"
+    | "exam"
+    | "assignment"
+    | "result"
+    | "attendance"
+    | "event"
+    | "announcement"
+    | "electiveCourse"; // Add this
+  type: "create" | "update" | "delete";
+  data?: any;
+  id?: number | string;
+  relatedData?: any;
+};
+
+const FormModal = ({ table, type, data, id, relatedData }: FormModalProps) => {
   const size = type === "create" ? "w-8 h-8" : "w-7 h-7";
   const bgColor =
     type === "create"
@@ -150,7 +180,7 @@ const FormModal = ({
     ) : type === "create" || type === "update" ? (
       // ✅ FIXED: Check if form exists before calling
       forms[table] ? (
-        forms[table](setOpen, type, data, relatedData)
+        forms[table](type, data, setOpen, relatedData)
       ) : (
         <div className="p-4 text-center">
           <h2 className="text-xl font-semibold text-gray-700">

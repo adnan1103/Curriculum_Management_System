@@ -33,6 +33,8 @@ model Student {
   class       Class        @relation(fields: [classId], references: [id])
   grade       Grade        @relation(fields: [gradeId], references: [id])
   parent      Parent       @relation(fields: [parentId], references: [id])
+  electiveEnrollments ElectiveEnrollment[]
+
 }
 
 model Teacher {
@@ -51,6 +53,7 @@ model Teacher {
   classes   Class[]
   lessons   Lesson[]
   subjects  Subject[] @relation("SubjectToTeacher")
+  electiveCourses ElectiveCourse[]
 }
 
 model Parent {
@@ -169,6 +172,42 @@ model Announcement {
   classId     Int?
   class       Class?   @relation(fields: [classId], references: [id])
 }
+
+model ElectiveCourse {
+  id          Int                  @id @default(autoincrement())
+  name        String
+  code        String               @unique
+  description String?
+  capacity    Int                  @default(30)
+  isActive    Boolean              @default(true)
+  credits     Int                  @default(3)
+  semester    String?
+  schedule    String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  teacherId   String?
+  teacher     Teacher?             @relation(fields: [teacherId], references: [id])
+  enrollments ElectiveEnrollment[]
+}
+
+model ElectiveEnrollment {
+  id               Int              @id @default(autoincrement())
+  studentId        String
+  electiveCourseId Int
+  enrolledAt       DateTime         @default(now())
+  status           EnrollmentStatus @default(ENROLLED)
+  student          Student          @relation(fields: [studentId], references: [id])
+  electiveCourse   ElectiveCourse   @relation(fields: [electiveCourseId], references: [id])
+
+  @@unique([studentId, electiveCourseId])
+}
+
+enum EnrollmentStatus {
+  ENROLLED
+  DROPPED
+  COMPLETED
+}
+
 
 enum UserSex {
   MALE

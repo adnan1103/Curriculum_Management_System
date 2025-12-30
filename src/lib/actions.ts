@@ -7,8 +7,11 @@ import {
   StudentSchema,
   SubjectSchema,
   TeacherSchema,
+  electiveCourseSchema,
+  electiveEnrollmentSchema
 } from "./formValidationSchemas";
 import prisma from "./prisma";
+import { auth } from "@clerk/nextjs/server";
 import { clerkClient } from "@clerk/nextjs/server";
 
 type CurrentState = { success: boolean; error: boolean };
@@ -468,5 +471,332 @@ export const deleteExam = async (
   } catch (err) {
     console.log(err);
     return { success: false, error: true };
+  }
+};
+
+
+type ElectiveCourseState = {
+  success: boolean;
+  error: boolean;
+  message?: string;
+};
+
+
+
+// CREATE ELECTIVE COURSE (Admin Only)
+export const createElectiveCourse = async (
+  currentState: ElectiveCourseState,
+  data: FormData
+): Promise<ElectiveCourseState> => {
+  try {
+    const { sessionClaims } = await auth();
+    const role = (sessionClaims?.metadata as { role?: string })?.role;
+
+    if (role !== "admin") {
+      return { success: false, error: true, message: "Unauthorized" };
+    }
+
+    const formData = Object.fromEntries(data.entries());
+    const validatedData = electiveCourseSchema.parse({
+      ...formData,
+      isActive: formData.isActive === "true" || formData.isActive === "on",
+    });
+
+    await prisma.electiveCourse.create({
+      data: {
+        name: validatedData.name,
+        code: validatedData.code,
+        description: validatedData.description || null,
+        capacity: validatedData.capacity,
+        credits: validatedData.credits,
+        semester: validatedData.semester || null,
+        schedule: validatedData.schedule || null,
+        isActive: validatedData.isActive,
+        teacherId: validatedData.teacherId || null,
+      },
+    });
+
+    revalidatePath("/list/elective-courses");
+    return { success: true, error: false, message: "Course created successfully!" };
+  } catch (err: any) {
+    console.error(err);
+    return { 
+      success: false, 
+      error: true, 
+      message: err.code === "P2002" ? "Course code already exists!" : "Failed to create course" 
+    };
+  }
+};
+
+// UPDATE ELECTIVE COURSE (Admin Only)
+export const updateElectiveCourse = async (
+  currentState: ElectiveCourseState,
+  data: FormData
+): Promise<ElectiveCourseState> => {
+  try {
+    const { sessionClaims } = await auth();
+    const role = (sessionClaims?.metadata as { role?: string })?.role;
+
+    if (role !== "admin") {
+      return { success: false, error: true, message: "Unauthorized" };
+    }
+
+    const formData = Object.fromEntries(data.entries());
+    const validatedData = electiveCourseSchema.parse({
+      ...formData,
+      isActive: formData.isActive === "true" || formData.isActive === "on",
+    });
+
+    await prisma.electiveCourse.update({
+      where: { id: validatedData.id },
+      data: {
+        name: validatedData.name,
+        code: validatedData.code,
+        description: validatedData.description || null,
+        capacity: validatedData.capacity,
+        credits: validatedData.credits,
+        semester: validatedData.semester || null,
+        schedule: validatedData.schedule || null,
+        isActive: validatedData.isActive,
+        teacherId: validatedData.teacherId || null,
+      },
+    });
+
+    revalidatePath("/list/elective-courses");
+    return { success: true, error: false, message: "Course updated successfully!" };
+  } catch (err: any) {
+    console.error(err);
+    return { success: false, error: true, message: "Failed to update course" };
+  }
+};
+
+// DELETE ELECTIVE COURSE (Admin Only)
+export const deleteElectiveCourse = async (
+  currentState: ElectiveCourseState,
+  data: FormData
+): Promise<ElectiveCourseState> => {
+  try {
+    const { sessionClaims } = await auth();
+    const role = (sessionClaims?.metadata as { role?: string })?.role;
+
+    if (role !== "admin") {
+      return { success: false, error: true, message: "Unauthorized" };
+    }
+
+    const id = data.get("id") as string;
+
+    // First delete all enrollments for this course
+    await prisma.electiveEnrollment.deleteMany({
+      where: { electiveCourseId: parseInt(id) },
+    });
+
+    // Then delete the course
+    await prisma.electiveCourse.delete({
+      where: { id: parseInt(id) },
+    });
+
+    revalidatePath("/list/elective-courses");
+    return { success: true, error: false, message: "Course deleted successfully!" };
+  } catch (err) {
+    console.error(err);
+    return { success: false, error: true, message: "Failed to delete course" };
+  }
+};
+
+// ==================== ELECTIVE ENROLLMENT ACTIONS ====================
+
+type EnrollmentState = {
+  success: boolean;
+  error: boolean;
+  message?: string;
+};
+
+// ENROLL IN ELECTIVE COURSE (Student)
+export const enrollInElectiveCourse = async (
+  currentState: EnrollmentState,
+  data: FormData
+): Promise<EnrollmentState> => {
+  try {
+    const { userId } = await auth();
+    
+    if (!userId) {
+      return { success: false, error: true, message: "You must be logged in!" };
+    }
+
+    const electiveCourseId = parseInt(data.get("electiveCourseId") as string);
+
+    // Get the course with current enrollment count
+    const course = await prisma.electiveCourse.findUnique({
+      where: { id: electiveCourseId },
+      include: {
+        _count: {
+          select: {
+            enrollments: {
+              where: { status: "ENROLLED" }
+            }
+          }
+        }
+      }
+    });
+
+    if (!course) {
+      return { success: false, error: true, message: "Course not found!" };
+    }
+
+    if (!course.isActive) {
+      return { success: false, error: true, message: "This course is not available for enrollment!" };
+    }
+
+    // Check if course is full
+    if (course._count.enrollments >= course.capacity) {
+      return { success: false, error: true, message: "Sorry! This course is full. No seats available." };
+    }
+
+    // Check if student is already enrolled
+    const existingEnrollment = await prisma.electiveEnrollment.findUnique({
+      where: {
+        studentId_electiveCourseId: {
+          studentId: userId,
+          electiveCourseId: electiveCourseId,
+        }
+      }
+    });
+
+    if (existingEnrollment) {
+      if (existingEnrollment.status === "ENROLLED") {
+        return { success: false, error: true, message: "You are already enrolled in this course!" };
+      } else {
+        // Re-enroll if previously dropped
+        await prisma.electiveEnrollment.update({
+          where: { id: existingEnrollment.id },
+          data: { status: "ENROLLED", enrolledAt: new Date() }
+        });
+        revalidatePath("/list/my-electives");
+        revalidatePath("/student");
+        return { success: true, error: false, message: "Successfully re-enrolled in the course!" };
+      }
+    }
+
+    // Create new enrollment
+    await prisma.electiveEnrollment.create({
+      data: {
+        studentId: userId,
+        electiveCourseId: electiveCourseId,
+        status: "ENROLLED",
+      }
+    });
+
+    revalidatePath("/list/my-electives");
+    revalidatePath("/student");
+    return { success: true, error: false, message: "Successfully enrolled in the course!" };
+  } catch (err: any) {
+    console.error(err);
+    return { success: false, error: true, message: "Failed to enroll. Please try again." };
+  }
+};
+
+// DROP ELECTIVE COURSE (Student)
+export const dropElectiveCourse = async (
+  currentState: EnrollmentState,
+  data: FormData
+): Promise<EnrollmentState> => {
+  try {
+    const { userId } = await auth();
+    
+    if (!userId) {
+      return { success: false, error: true, message: "You must be logged in!" };
+    }
+
+    const electiveCourseId = parseInt(data.get("electiveCourseId") as string);
+
+    const enrollment = await prisma.electiveEnrollment.findUnique({
+      where: {
+        studentId_electiveCourseId: {
+          studentId: userId,
+          electiveCourseId: electiveCourseId,
+        }
+      }
+    });
+
+    if (!enrollment) {
+      return { success: false, error: true, message: "Enrollment not found!" };
+    }
+
+    await prisma.electiveEnrollment.update({
+      where: { id: enrollment.id },
+      data: { status: "DROPPED" }
+    });
+
+    revalidatePath("/list/my-electives");
+    revalidatePath("/student");
+    return { success: true, error: false, message: "Successfully dropped the course!" };
+  } catch (err) {
+    console.error(err);
+    return { success: false, error: true, message: "Failed to drop course. Please try again." };
+  }
+};
+
+// GET AVAILABLE ELECTIVE COURSES
+export const getAvailableElectiveCourses = async () => {
+  try {
+    const courses = await prisma.electiveCourse.findMany({
+      where: { isActive: true },
+      include: {
+        teacher: {
+          select: {
+            name: true,
+            surname: true,
+          }
+        },
+        _count: {
+          select: {
+            enrollments: {
+              where: { status: "ENROLLED" }
+            }
+          }
+        }
+      },
+      orderBy: { name: "asc" }
+    });
+
+    return courses.map(course => ({
+      ...course,
+      enrolledCount: course._count.enrollments,
+      availableSeats: course.capacity - course._count.enrollments,
+      isFull: course._count.enrollments >= course.capacity,
+    }));
+  } catch (err) {
+    console.error(err);
+    return [];
+  }
+};
+
+// GET STUDENT'S ENROLLED COURSES
+export const getStudentEnrollments = async (studentId: string) => {
+  try {
+    const enrollments = await prisma.electiveEnrollment.findMany({
+      where: { 
+        studentId: studentId,
+        status: "ENROLLED"
+      },
+      include: {
+        electiveCourse: {
+          include: {
+            teacher: {
+              select: {
+                name: true,
+                surname: true,
+              }
+            }
+          }
+        }
+      },
+      orderBy: { enrolledAt: "desc" }
+    });
+
+    return enrollments;
+  } catch (err) {
+    console.error(err);
+    return [];
   }
 };

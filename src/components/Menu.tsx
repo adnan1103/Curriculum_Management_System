@@ -24,6 +24,21 @@ const menuItems = [
         href: "/list/students",
         visible: ["admin", "teacher"],
       },
+      // For Admin Menu
+      {
+        icon: "/subject.png",
+        label: "Elective Courses",
+        href: "/list/elective-courses",
+        visible: ["admin"],
+      },
+
+      // For Student Menu
+      {
+        icon: "/subject.png",
+        label: "My Electives",
+        href: "/list/my-electives",
+        visible: ["student"],
+      },
       {
         icon: "/parent.png",
         label: "Parents",
@@ -118,7 +133,7 @@ const menuItems = [
 ];
 
 const Menu = async () => {
-    const user = await currentUser();
+  const user = await currentUser();
   const role = user?.publicMetadata.role as string;
   return (
     <div className="mt-4 text-sm">
