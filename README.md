@@ -1,4 +1,4 @@
-# LMS Management Dashboard
+# Curriculum_Management_System
 
 ## Getting Started
 
